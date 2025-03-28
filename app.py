@@ -13,7 +13,6 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Write secrets to a temporary file and pass the file path to EE
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
         json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
         f.flush()
@@ -24,7 +23,6 @@ except Exception as e:
     st.error(f"❌ Failed to initialize Earth Engine: {e}")
     st.stop()
 
-# Helper function
 st.write("🔍 Ready for user input...")
 
 def get_lat_lon(location_name):
@@ -38,7 +36,6 @@ def get_lat_lon(location_name):
         return None, None
     return None, None
 
-# Pages
 if "page" not in st.session_state:
     st.session_state.page = 1
 
@@ -75,31 +72,90 @@ elif st.session_state.page == 3:
         .sort("CLOUDY_PIXEL_PERCENTAGE") \
         .first()
 
-    # Segmentation map
-    ndvi = image.normalizedDifference(['B8', 'B4'])
-    ndwi = image.normalizedDifference(['B3', 'B8'])
-    ndbi = image.normalizedDifference(['B11', 'B8'])
-    classified = ee.Image(0) \
-        .where(ndvi.gt(0.2), 1) \
-        .where(ndwi.gt(0.1), 2) \
-        .where(ndbi.gt(0.1), 3) \
-        .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
+    if image:
+        # NDVI health visualization
+        ndvi_health = image.normalizedDifference(['B8', 'B4']).rename("NDVI")
+        ndvi_vis = {"min": 0.0, "max": 1.0, "palette": ['red', 'yellow', 'green']}
 
-    Map = folium.Map(location=[lat, lon], zoom_start=13)
-    Map.add_child(folium.LatLngPopup())
-    Map.add_ee_layer = lambda self, ee_image, vis_params, name: folium.raster_layers.TileLayer(
-        tiles=ee_image.getMapId(vis_params)["tile_fetcher"].url_format,
-        attr="Map Data &copy; Google Earth Engine",
-        name=name,
-        overlay=True,
-        control=True
-    ).add_to(self)
+        ndvi_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+        ndvi_map.add_ee_layer = add_ee_layer
+        ndvi_map.add_ee_layer(ndvi_health, ndvi_vis, 'NDVI Vegetation Health')
 
-    Map.add_ee_layer(image.visualize(min=0, max=3000, bands=['B4','B3','B2']), {}, "Original Image")
-    Map.add_ee_layer(classified.visualize(min=0, max=4, palette=['black', 'green', 'blue', 'gray', 'yellow']), {}, "Segmented Land Cover")
-    st_folium(Map, width=700, height=450)
+        st.markdown("**🌿 NDVI Vegetation Health / ಸಸ್ಯಾವರಣದ ಆರೋಗ್ಯ:**")
+        st_folium(ndvi_map, width=700, height=350)
 
-    # Soil analysis
+        # Land Use / Land Cover (LULC) Change Detection
+        lulc_early = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2020-01-01', '2020-12-31').first()
+        lulc_recent = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2023-01-01', '2023-12-31').first()
+
+        lulc_diff = lulc_recent.subtract(lulc_early).clip(point.buffer(1000))
+        lulc_vis = {"min": -100, "max": 100, "palette": ['red', 'white', 'green']}
+
+        lulc_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+        lulc_map.add_ee_layer = add_ee_layer
+        lulc_map.add_ee_layer(lulc_diff, lulc_vis, 'LULC Change Detection')
+
+        st.markdown("**🗺️ Land Use / Land Cover Change (2020 → 2023) / ಭೂಪಯೋಗ ಬದಲಾವಣೆ:**")
+        st_folium(lulc_map, width=700, height=350)
+        ndvi = image.normalizedDifference(['B8', 'B4'])
+        ndwi = image.normalizedDifference(['B3', 'B8'])
+        ndbi = image.normalizedDifference(['B11', 'B8'])
+        classified = ee.Image(0) \
+            .where(ndvi.gt(0.2), 1) \
+            .where(ndwi.gt(0.1), 2) \
+            .where(ndbi.gt(0.1), 3) \
+            .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
+
+        def add_ee_layer(self, ee_image, vis_params, name):
+            map_id_dict = ee.Image(ee_image).getMapId(vis_params)
+            folium.raster_layers.TileLayer(
+                tiles=map_id_dict["tile_fetcher"].url_format,
+                attr="Google Earth Engine",
+                name=name,
+                overlay=True,
+                control=True,
+            ).add_to(self)
+
+        folium.Map.add_ee_layer = add_ee_layer
+
+        original_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+        segmented_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+
+        original_map.add_ee_layer(image.visualize(min=0, max=3000, bands=['B4','B3','B2']), {}, "Original Image")
+        segmented_map.add_ee_layer(classified.visualize(min=0, max=4, palette=['black', 'green', 'blue', 'gray', 'yellow']), {}, "Segmented")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("🛰️ Original Satellite Image")
+            st_folium(original_map, width=340, height=350)
+        with col2:
+            st.write("🗺️ Segmented Land Cover")
+
+        # Building presence and classification
+        building_mask = classified.eq(3)
+        building_density = building_mask.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=point.buffer(1000),
+            scale=30
+        ).getInfo()
+
+        density_value = building_density.get('constant') if building_density else None
+
+        building_type = "Unknown"
+        if density_value:
+            if density_value > 0.3:
+                building_type = "🏢 Apartments / ಅಪಾರ್ಟ್‌ಮೆಂಟ್‌ಗಳು"
+            elif 0.1 < density_value <= 0.3:
+                building_type = "🏘️ Rental Houses / ಬಾಡಿಗೆ ಮನೆಗಳು"
+            elif 0 < density_value <= 0.1:
+                building_type = "🏠 Own House / ಖಾಸಗಿ ಮನೆ"
+
+        st.write(f"**🏗️ Building Type (Estimated) / ಕಟ್ಟಡದ ಪ್ರಕಾರ (ಅಂದಾಜು):** {building_type}")
+            st_folium(segmented_map, width=340, height=350)
+
+    else:
+        st.error("❌ No Sentinel-2 image found for this location and date range.")
+
     soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
     soil_texture = soil_dataset.select('b0')
     soil_value = soil_texture.reduceRegion(reducer=ee.Reducer.mode(), geometry=point, scale=250).getInfo()
@@ -132,10 +188,10 @@ elif st.session_state.page == 3:
         "Clayey Soil / ಕಡಲು ಮಣ್ಣು": "High"
     }
 
-    st.write(f"**🟤 Soil Type:** {soil_type}")
-    st.write(f"**🌾 Recommended Crops:** {crops.get(soil_type, 'N/A')}")
-    st.write(f"**🌧️ Rainfall Required:** {rainfall.get(soil_type, 'N/A')}")
-    st.write(f"**💧 Moisture Content:** {moisture.get(soil_type, 'N/A')}")
+    st.write(f"**🟤 Soil Type / ಮಣ್ಣು ಪ್ರಕಾರ:** {soil_type}")
+    st.write(f"**🌾 Recommended Crops / ಶಿಫಾರಸು ಮಾಡಿದ ಬೆಳೆಗಳು:** {crops.get(soil_type, 'N/A')}")
+    st.write(f"**🌧️ Rainfall Required / ಅಗತ್ಯವಿರುವ ಮಳೆಯ ಪ್ರಮಾಣ:** {rainfall.get(soil_type, 'N/A')}")
+    st.write(f"**💧 Moisture Content / ತೇವಾಂಶದ ಮಟ್ಟ:** {moisture.get(soil_type, 'N/A')}")
 
     if st.button("➡️ Next: Water Analysis"):
         st.session_state.page = 4
@@ -150,10 +206,37 @@ elif st.session_state.page == 4:
     modis_presence = modis_water.reduceRegion(reducer=ee.Reducer.mean(), geometry=point.buffer(1000), scale=250).get("water_mask").getInfo()
 
     if modis_presence and modis_presence > 0:
-        st.success("✅ Water body detected in this region.")
+    st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
+
+    # Water Quality Indicators (Pollution & Fish Feasibility)
+    water_quality = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY") \
+        .filterBounds(point) \
+        .select(["lake_total_layer_temperature", "lake_mix_layer_depth", "lake_bottom_temperature"]) \
+        .mean()
+
+    quality_data = water_quality.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=point.buffer(1000),
+        scale=500,
+        maxPixels=1e13
+    ).getInfo()
+
+    temp = quality_data.get("lake_total_layer_temperature")
+    depth = quality_data.get("lake_mix_layer_depth")
+
+    pollution_status = "Moderate"
+    if temp and temp > 305:
+        pollution_status = "High / ಹೆಚ್ಚಿನ ಮಾಲಿನ್ಯ"
+    elif temp and temp < 295:
+        pollution_status = "Low / ಕಡಿಮೆ ಮಾಲಿನ್ಯ"
+
+    fishing_possible = "Yes / ಹೌದು" if depth and depth > 0.5 else "No / ಇಲ್ಲ"
+
+    st.markdown(f"**🌊 Water Pollution Estimate / ನೀರಿನ ಮಾಲಿನ್ಯ ಪ್ರಮಾಣ:** {pollution_status}")
+    st.markdown(f"**🐟 Fishery Possibility / ಮೀನುಗಾರಿಕೆ ಸಾಧ್ಯತೆ:** {fishing_possible}")
     else:
-        st.warning("⚠️ No water body detected in this area.")
-        st.info("💡 Suggested Irrigation: Borewell, Drip Irrigation, or Rainwater Harvesting")
+        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
+        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
 
     if st.button("🔁 Restart"):
         st.session_state.page = 1
