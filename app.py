@@ -69,6 +69,37 @@ elif st.session_state.page == 3:
     lat, lon = st.session_state.lat, st.session_state.lon
     point = ee.Geometry.Point([lon, lat])
 
+    image = ee.ImageCollection("COPERNICUS/S2_SR") \
+        .filterBounds(point) \
+        .filterDate('2023-01-01', '2023-12-31') \
+        .sort("CLOUDY_PIXEL_PERCENTAGE") \
+        .first()
+
+    # Segmentation map
+    ndvi = image.normalizedDifference(['B8', 'B4'])
+    ndwi = image.normalizedDifference(['B3', 'B8'])
+    ndbi = image.normalizedDifference(['B11', 'B8'])
+    classified = ee.Image(0) \
+        .where(ndvi.gt(0.2), 1) \
+        .where(ndwi.gt(0.1), 2) \
+        .where(ndbi.gt(0.1), 3) \
+        .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
+
+    Map = folium.Map(location=[lat, lon], zoom_start=13)
+    Map.add_child(folium.LatLngPopup())
+    Map.add_ee_layer = lambda self, ee_image, vis_params, name: folium.raster_layers.TileLayer(
+        tiles=ee_image.getMapId(vis_params)["tile_fetcher"].url_format,
+        attr="Map Data &copy; Google Earth Engine",
+        name=name,
+        overlay=True,
+        control=True
+    ).add_to(self)
+
+    Map.add_ee_layer(image.visualize(min=0, max=3000, bands=['B4','B3','B2']), {}, "Original Image")
+    Map.add_ee_layer(classified.visualize(min=0, max=4, palette=['black', 'green', 'blue', 'gray', 'yellow']), {}, "Segmented Land Cover")
+    st_folium(Map, width=700, height=450)
+
+    # Soil analysis
     soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
     soil_texture = soil_dataset.select('b0')
     soil_value = soil_texture.reduceRegion(reducer=ee.Reducer.mode(), geometry=point, scale=250).getInfo()
@@ -88,8 +119,23 @@ elif st.session_state.page == 3:
         "Loamy Soil / ಮಿಶ್ರ ಮಣ್ಣು": "Wheat, Maize, Vegetables / ಗೋಧಿ, ಜೋಳ, ತರಕಾರಿಗಳು",
         "Clayey Soil / ಕಡಲು ಮಣ್ಣು": "Rice, Sugarcane, Pulses / ಅಕ್ಕಿ, ಸಕ್ಕರೆ, ಕಡಲೆ"
     }
+
+    rainfall = {
+        "Sandy Soil / ಮರಳು ಮಣ್ಣು": "300–600 mm (Low to Moderate)",
+        "Loamy Soil / ಮಿಶ್ರ ಮಣ್ಣು": "600–1000 mm (Moderate)",
+        "Clayey Soil / ಕಡಲು ಮಣ್ಣು": "1000+ mm (High)"
+    }
+
+    moisture = {
+        "Sandy Soil / ಮರಳು ಮಣ್ಣು": "Low",
+        "Loamy Soil / ಮಿಶ್ರ ಮಣ್ಣು": "Moderate",
+        "Clayey Soil / ಕಡಲು ಮಣ್ಣು": "High"
+    }
+
     st.write(f"**🟤 Soil Type:** {soil_type}")
     st.write(f"**🌾 Recommended Crops:** {crops.get(soil_type, 'N/A')}")
+    st.write(f"**🌧️ Rainfall Required:** {rainfall.get(soil_type, 'N/A')}")
+    st.write(f"**💧 Moisture Content:** {moisture.get(soil_type, 'N/A')}")
 
     if st.button("➡️ Next: Water Analysis"):
         st.session_state.page = 4
@@ -107,6 +153,7 @@ elif st.session_state.page == 4:
         st.success("✅ Water body detected in this region.")
     else:
         st.warning("⚠️ No water body detected in this area.")
+        st.info("💡 Suggested Irrigation: Borewell, Drip Irrigation, or Rainwater Harvesting")
 
     if st.button("🔁 Restart"):
         st.session_state.page = 1
