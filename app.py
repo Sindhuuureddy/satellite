@@ -1,5 +1,6 @@
 import ee
 import folium
+import streamlit as st
 from folium.plugins import FloatImage
 from streamlit_folium import st_folium
 import matplotlib.pyplot as plt
@@ -8,7 +9,6 @@ import tempfile
 import json
 import requests
 from PIL import Image
-import streamlit as st
 
 # Set page configuration
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
@@ -94,7 +94,7 @@ accuracy = 92  # Simulated accuracy
 
 # Accuracy graph (matplotlib)
 epochs = np.arange(1, 11)
-accuracy_values = np.linspace(68, accuracy, num=10)  # Simulate accuracy increase from 68% to 92%
+accuracy_values = np.full(10, accuracy / 100)  # Fill with the accuracy (92%) for simplicity
 
 fig, ax = plt.subplots(figsize=(8, 5))
 ax.plot(epochs, accuracy_values, label="Accuracy", color="green", marker="o")
