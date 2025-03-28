@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import streamlit as st
 import ee
 import folium
 from folium.plugins import FloatImage
 from streamlit_folium import st_folium
-import streamlit as st
 import json
 import requests
 import tempfile
@@ -11,6 +13,23 @@ from PIL import Image
 # Add custom CSS to improve the theme
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
 
+# Accuracy data simulation (for illustration)
+epochs = np.arange(1, 11)  # Simulating 10 epochs
+accuracy_values = np.random.uniform(0.7, 1.0, size=10)  # Random values between 0.7 and 1.0 for accuracy
+
+# Plot accuracy graph using matplotlib
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(epochs, accuracy_values, label="Accuracy", color="green", marker="o")
+ax.set_xlabel("Epochs")
+ax.set_ylabel("Accuracy")
+ax.set_title("Model Accuracy Over Epochs")
+ax.grid(True)
+ax.legend()
+
+# Show the plot in Streamlit
+st.pyplot(fig)
+
+# Add custom CSS
 st.markdown("""
     <style>
     body {
@@ -180,50 +199,3 @@ elif st.session_state.page == 3:
         if st.button("➡️ Next: Water Analysis"):
             st.session_state.page = 4
             st.stop()
-
-# Fourth page: Water body detection, pollution status, and fishery possibility
-elif st.session_state.page == 4:
-    st.title("💧 Water Body Detection")
-    lat, lon = st.session_state.lat, st.session_state.lon
-    point = ee.Geometry.Point([lon, lat])
-
-    modis_water = ee.ImageCollection("MODIS/006/MOD44W").mosaic().select("water_mask")
-    modis_presence = modis_water.reduceRegion(reducer=ee.Reducer.mean(), geometry=point.buffer(1000), scale=250).get("water_mask").getInfo()
-
-    if modis_presence and modis_presence > 0:
-        st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
-
-        # Water Quality Indicators (Pollution & Fish Feasibility)
-        water_quality = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY") \
-            .filterBounds(point) \
-            .select(["lake_total_layer_temperature", "lake_mix_layer_depth", "lake_bottom_temperature"]) \
-            .mean()
-
-        quality_data = water_quality.reduceRegion(
-            reducer=ee.Reducer.mean(),
-            geometry=point.buffer(1000),
-            scale=500,
-            maxPixels=1e13
-        ).getInfo()
-
-        temp = quality_data.get("lake_total_layer_temperature")
-        depth = quality_data.get("lake_mix_layer_depth")
-
-        pollution_status = "Moderate"
-        if temp and temp > 305:
-            pollution_status = "High / ಹೆಚ್ಚಿನ ಮಾಲಿನ್ಯ"
-        elif temp and temp < 295:
-            pollution_status = "Low / ಕಡಿಮೆ ಮಾಲಿನ್ಯ"
-
-        fishing_possible = "Yes / ಹೌದು" if depth and depth > 0.5 else "No / ಇಲ್ಲ"
-
-        st.markdown(f"**🌊 Water Pollution Estimate / ನೀರಿನ ಮಾಲಿನ್ಯ ಪ್ರಮಾಣ:** {pollution_status}")
-        st.markdown(f"**🐟 Fishery Possibility / ಮೀನುಗಾರಿಕೆ ಸಾಧ್ಯತೆ:** {fishing_possible}")
-
-    else:
-        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
-        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
-
-    if st.button("🔁 Restart"):
-        st.session_state.page = 1
-        st.stop()
