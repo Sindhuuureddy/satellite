@@ -12,11 +12,12 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Safely convert AttrDict to a normal Python dict using dict()
-    credentials_dict = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    # Convert AttrDict to JSON string then to bytes for Earth Engine
+    credentials_json = json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    credentials_bytes = credentials_json.encode("utf-8")
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
     st.write("✅ Credentials found, initializing Earth Engine...")
-    credentials = ee.ServiceAccountCredentials(service_account, key_data=credentials_dict)
+    credentials = ee.ServiceAccountCredentials(service_account, key_data=credentials_bytes)
     ee.Initialize(credentials)
     st.success("🌍 Earth Engine initialized successfully!")
 except Exception as e:
