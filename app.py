@@ -130,6 +130,7 @@ elif st.session_state.page == 3:
             st_folium(original_map, width=340, height=350)
         with col2:
             st.write("🗺️ Segmented Land Cover")
+            st_folium(segmented_map, width=340, height=350)
 
         # Building presence and classification
         building_mask = classified.eq(3)
