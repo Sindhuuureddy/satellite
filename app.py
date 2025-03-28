@@ -49,7 +49,7 @@ if st.session_state.page == 1:
     if location:
         st.session_state.location = location
         st.session_state.page = 2
-        st.experimental_rerun()
+        st.stop()
 
 elif st.session_state.page == 2:
     location = st.session_state.location
@@ -60,7 +60,7 @@ elif st.session_state.page == 2:
         st.success(f"📌 Location: {location}\nLatitude = {lat}, Longitude = {lon}")
         if st.button("➡️ Next: Soil Analysis"):
             st.session_state.page = 3
-            st.experimental_rerun()
+            st.stop()
     else:
         st.error("Could not retrieve coordinates. Try another location.")
 
@@ -93,7 +93,7 @@ elif st.session_state.page == 3:
 
     if st.button("➡️ Next: Water Analysis"):
         st.session_state.page = 4
-        st.experimental_rerun()
+        st.stop()
 
 elif st.session_state.page == 4:
     st.title("💧 Water Body Detection")
@@ -110,7 +110,7 @@ elif st.session_state.page == 4:
 
     if st.button("🔁 Restart"):
         st.session_state.page = 1
-        st.experimental_rerun()
+        st.stop()
 
 if "uploaded_image" in locals() and uploaded_image:
     st.image(Image.open(uploaded_image), caption="Uploaded Satellite Image", use_column_width=True)
