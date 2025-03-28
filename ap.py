@@ -8,6 +8,8 @@ from PIL import Image
 import tempfile
 
 # Add custom CSS to improve the theme
+st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
+
 st.markdown("""
     <style>
     body {
@@ -58,7 +60,6 @@ def add_ee_layer(self, ee_image, vis_params, name):
 folium.Map.add_ee_layer = add_ee_layer
 
 # Initialize Earth Engine credentials
-st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
 st.write("✅ App is starting...")
 
 try:
