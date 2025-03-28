@@ -13,9 +13,10 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Write the credentials to a temporary file
+    # Write credentials JSON string as bytes to a temp file
+    credentials_json = json.dumps(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])).encode("utf-8")
     with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
-        json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), tmp)
+        tmp.write(credentials_json)
         tmp_path = tmp.name
 
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
