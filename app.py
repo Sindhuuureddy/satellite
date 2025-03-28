@@ -5,7 +5,6 @@ import requests
 import folium
 from streamlit_folium import st_folium
 from PIL import Image
-from collections.abc import Mapping
 import tempfile
 
 # Function to add Earth Engine layers to a folium map
@@ -23,11 +22,10 @@ def add_ee_layer(self, ee_image, vis_params, name):
 # Attach the method to folium.Map
 folium.Map.add_ee_layer = add_ee_layer
 
-# Page setup and initial information
+# Initialize Earth Engine credentials
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
 st.write("✅ App is starting...")
 
-# Initialize Earth Engine credentials
 try:
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
         json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
@@ -38,8 +36,6 @@ try:
 except Exception as e:
     st.error(f"❌ Failed to initialize Earth Engine: {e}")
     st.stop()
-
-st.write("🔍 Ready for user input...")
 
 # Get latitude and longitude from location name
 def get_lat_lon(location_name):
@@ -204,4 +200,10 @@ elif st.session_state.page == 4:
         st.markdown(f"**🐟 Fishery Possibility / ಮೀನುಗಾರಿಕೆ ಸಾಧ್ಯತೆ:** {fishing_possible}")
 
     else:
-        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ
+        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
+        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
+
+    if st.button("🔁 Restart"):
+        st.session_state.page = 1
+        st.stop()
+
