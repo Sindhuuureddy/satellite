@@ -152,7 +152,6 @@ elif st.session_state.page == 3:
                 building_type = "🏠 Own House / ಖಾಸಗಿ ಮನೆ"
 
         st.write(f"**🏗️ Building Type (Estimated) / ಕಟ್ಟಡದ ಪ್ರಕಾರ (ಅಂದಾಜು):** {building_type}")
-            st_folium(segmented_map, width=340, height=350)
 
     else:
         st.error("❌ No Sentinel-2 image found for this location and date range.")
@@ -207,7 +206,7 @@ elif st.session_state.page == 4:
     modis_presence = modis_water.reduceRegion(reducer=ee.Reducer.mean(), geometry=point.buffer(1000), scale=250).get("water_mask").getInfo()
 
     if modis_presence and modis_presence > 0:
-    st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
+        st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
 
     # Water Quality Indicators (Pollution & Fish Feasibility)
     water_quality = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY") \
