@@ -1,11 +1,12 @@
-import streamlit as st
 import ee
+import folium
+from folium.plugins import FloatImage
+from streamlit_folium import st_folium
+import streamlit as st
 import json
 import requests
-import folium
-from streamlit_folium import st_folium
-from PIL import Image
 import tempfile
+from PIL import Image
 
 # Add custom CSS to improve the theme
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
@@ -56,7 +57,7 @@ def add_ee_layer(self, ee_image, vis_params, name):
         control=True,
     ).add_to(self)
 
-# Attach the method to folium.Map
+# Patch folium.Map
 folium.Map.add_ee_layer = add_ee_layer
 
 # Initialize Earth Engine credentials
@@ -138,7 +139,7 @@ elif st.session_state.page == 3:
         st.markdown("**🌿 NDVI Vegetation Health / ಸಸ್ಯಾವರಣದ ಆರೋಗ್ಯ:**")
         st_folium(ndvi_map, width=700, height=350)
 
-        # Soil type, crop recommendation, moisture and rainfall
+        # Soil type, crop recommendation, moisture, and rainfall
         soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
         soil_texture = soil_dataset.select('b0')
         soil_value = soil_texture.reduceRegion(reducer=ee.Reducer.mode(), geometry=point, scale=250).getInfo()
