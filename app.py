@@ -6,21 +6,16 @@ import folium
 from streamlit_folium import st_folium
 from PIL import Image
 from collections.abc import Mapping
-import tempfile
 
 st.set_page_config(page_title="Namma Kisan", layout="centered")
 
 st.write("✅ App is starting...")
 
 try:
-    # Safely write credentials to a temporary file and pass the path
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp:
-        json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), tmp)
-        tmp_path = tmp.name
-
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
-    st.write("✅ Credentials file created, initializing Earth Engine...")
-    credentials = ee.ServiceAccountCredentials(service_account, tmp_path)
+    key_data = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    st.write("✅ Credentials loaded, initializing Earth Engine...")
+    credentials = ee.ServiceAccountCredentials(service_account, key_data=key_data)
     ee.Initialize(credentials)
     st.success("🌍 Earth Engine initialized successfully!")
 except Exception as e:
