@@ -23,10 +23,11 @@ def add_ee_layer(self, ee_image, vis_params, name):
 # Attach the method to folium.Map
 folium.Map.add_ee_layer = add_ee_layer
 
+# Page setup and initial information
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
-
 st.write("✅ App is starting...")
 
+# Initialize Earth Engine credentials
 try:
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
         json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
@@ -40,6 +41,7 @@ except Exception as e:
 
 st.write("🔍 Ready for user input...")
 
+# Get latitude and longitude from location name
 def get_lat_lon(location_name):
     url = f"https://nominatim.openstreetmap.org/search?q={location_name}&format=json"
     headers = {"User-Agent": "MyApp"}
@@ -54,6 +56,7 @@ def get_lat_lon(location_name):
 if "page" not in st.session_state:
     st.session_state.page = 1
 
+# First page: Input location and optional satellite image
 if st.session_state.page == 1:
     st.title("🌱 Satellite Image Analysis")
     location = st.text_input("📍 Enter location (Kannada or English):")
@@ -63,6 +66,7 @@ if st.session_state.page == 1:
         st.session_state.page = 2
         st.stop()
 
+# Second page: Display latitude, longitude, and proceed to soil analysis
 elif st.session_state.page == 2:
     location = st.session_state.location
     lat, lon = get_lat_lon(location)
@@ -78,11 +82,13 @@ elif st.session_state.page == 2:
         st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
         st.error("Could not retrieve coordinates. Try another location.")
 
+# Third page: Soil and crop recommendation, NDVI and LULC change detection
 elif st.session_state.page == 3:
     st.title("🧪 Soil & Crop Recommendation")
     lat, lon = st.session_state.lat, st.session_state.lon
     point = ee.Geometry.Point([lon, lat])
 
+    # Sentinel-2 image for analysis
     image = ee.ImageCollection("COPERNICUS/S2_SR") \
         .filterBounds(point) \
         .filterDate('2023-01-01', '2023-12-31') \
@@ -90,7 +96,7 @@ elif st.session_state.page == 3:
         .first()
 
     if image:
-        # NDVI health visualization
+        # NDVI (Vegetation Health)
         ndvi_health = image.normalizedDifference(['B8', 'B4']).rename("NDVI")
         ndvi_vis = {"min": 0.0, "max": 1.0, "palette": ['red', 'yellow', 'green']}
 
@@ -104,38 +110,19 @@ elif st.session_state.page == 3:
         lulc_early = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2020-01-01', '2020-12-31').first()
         lulc_recent = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2023-01-01', '2023-12-31').first()
 
-        lulc_diff = lulc_recent.subtract(lulc_early).clip(point.buffer(1000))
-        lulc_vis = {"min": -100, "max": 100, "palette": ['red', 'white', 'green']}
+        if lulc_early and lulc_recent:
+            lulc_diff = lulc_recent.subtract(lulc_early).clip(point.buffer(1000))
+            lulc_vis = {"min": -100, "max": 100, "palette": ['red', 'white', 'green']}
 
-        lulc_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-        lulc_map.add_ee_layer(lulc_diff, lulc_vis, 'LULC Change Detection')
+            lulc_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+            lulc_map.add_ee_layer(lulc_diff, lulc_vis, 'LULC Change Detection')
 
-        st.markdown("**🗺️ Land Use / Land Cover Change (2020 → 2023) / ಭೂಪಯೋಗ ಬದಲಾವಣೆ:**")
-        st_folium(lulc_map, width=700, height=350)
+            st.markdown("**🗺️ Land Use / Land Cover Change (2020 → 2023) / ಭೂಪಯೋಗ ಬದಲಾವಣೆ:**")
+            st_folium(lulc_map, width=700, height=350)
+        else:
+            st.error("❌ Failed to load Land Use / Land Cover images for change detection.")
 
-        ndvi = image.normalizedDifference(['B8', 'B4'])
-        ndwi = image.normalizedDifference(['B3', 'B8'])
-        ndbi = image.normalizedDifference(['B11', 'B8'])
-        classified = ee.Image(0) \
-            .where(ndvi.gt(0.2), 1) \
-            .where(ndwi.gt(0.1), 2) \
-            .where(ndbi.gt(0.1), 3) \
-            .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
-
-        original_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-        segmented_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-
-        original_map.add_ee_layer(image.visualize(min=0, max=3000, bands=['B4','B3','B2']), {}, "Original Image")
-        segmented_map.add_ee_layer(classified.visualize(min=0, max=4, palette=['black', 'green', 'blue', 'gray', 'yellow']), {}, "Segmented")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("🛰️ Original Satellite Image")
-            st_folium(original_map, width=340, height=350)
-        with col2:
-            st.write("🗺️ Segmented Land Cover")
-            st_folium(segmented_map, width=340, height=350)
-
+        # Soil type, crop recommendation, moisture and rainfall
         soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
         soil_texture = soil_dataset.select('b0')
         soil_value = soil_texture.reduceRegion(reducer=ee.Reducer.mode(), geometry=point, scale=250).getInfo()
@@ -177,6 +164,7 @@ elif st.session_state.page == 3:
             st.session_state.page = 4
             st.stop()
 
+# Fourth page: Water body detection, pollution status, and fishery possibility
 elif st.session_state.page == 4:
     st.title("💧 Water Body Detection")
     lat, lon = st.session_state.lat, st.session_state.lon
@@ -216,13 +204,4 @@ elif st.session_state.page == 4:
         st.markdown(f"**🐟 Fishery Possibility / ಮೀನುಗಾರಿಕೆ ಸಾಧ್ಯತೆ:** {fishing_possible}")
 
     else:
-        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
-        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
-
-    if st.button("🔁 Restart"):
-        st.session_state.page = 1
-        st.stop()
-
-if "uploaded_image" in locals() and uploaded_image:
-    st.image(Image.open(uploaded_image), caption="Uploaded Satellite Image", use_column_width=True)
-    st.info("🖼️ You uploaded a custom satellite image.")
+        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ
