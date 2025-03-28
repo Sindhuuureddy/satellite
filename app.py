@@ -12,9 +12,8 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Convert AttrDict to JSON string then back to dict
-    credentials_str = json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
-    credentials_dict = json.loads(credentials_str)
+    # Safely convert AttrDict to a normal Python dict using dict()
+    credentials_dict = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
     st.write("✅ Credentials found, initializing Earth Engine...")
     credentials = ee.ServiceAccountCredentials(service_account, key_data=credentials_dict)
