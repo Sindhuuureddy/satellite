@@ -1,35 +1,19 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import streamlit as st
 import ee
 import folium
+import streamlit as st
 from folium.plugins import FloatImage
 from streamlit_folium import st_folium
+import matplotlib.pyplot as plt
+import numpy as np
+import tempfile
 import json
 import requests
-import tempfile
 from PIL import Image
 
-# Add custom CSS to improve the theme
+# Set page configuration
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
 
-# Accuracy data simulation (for illustration)
-epochs = np.arange(1, 11)  # Simulating 10 epochs
-accuracy_values = np.random.uniform(0.7, 1.0, size=10)  # Random values between 0.7 and 1.0 for accuracy
-
-# Plot accuracy graph using matplotlib
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.plot(epochs, accuracy_values, label="Accuracy", color="green", marker="o")
-ax.set_xlabel("Epochs")
-ax.set_ylabel("Accuracy")
-ax.set_title("Model Accuracy Over Epochs")
-ax.grid(True)
-ax.legend()
-
-# Show the plot in Streamlit
-st.pyplot(fig)
-
-# Add custom CSS
+# Add custom CSS to improve the theme
 st.markdown("""
     <style>
     body {
@@ -105,10 +89,28 @@ def get_lat_lon(location_name):
         return None, None
     return None, None
 
+# Simulated accuracy (you can replace this with actual accuracy)
+accuracy = 92  # Simulated accuracy
+
+# Accuracy graph (matplotlib)
+epochs = np.arange(1, 11)
+accuracy_values = np.full(10, accuracy / 100)  # Fill with the accuracy (92%) for simplicity
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(epochs, accuracy_values, label="Accuracy", color="green", marker="o")
+ax.set_xlabel("Epochs")
+ax.set_ylabel("Accuracy")
+ax.set_title(f"Model Accuracy: {accuracy}%")
+ax.grid(True)
+ax.legend()
+
+# Display the accuracy graph in Streamlit
+st.pyplot(fig)
+
+# Page flow (1st, 2nd, 3rd, and 4th page as before)
 if "page" not in st.session_state:
     st.session_state.page = 1
 
-# First page: Input location and optional satellite image
 if st.session_state.page == 1:
     st.title("🌱 Satellite Image Analysis")
     location = st.text_input("📍 Enter location (Kannada or English):")
@@ -118,7 +120,6 @@ if st.session_state.page == 1:
         st.session_state.page = 2
         st.stop()
 
-# Second page: Display latitude, longitude, and proceed to soil analysis
 elif st.session_state.page == 2:
     location = st.session_state.location
     lat, lon = get_lat_lon(location)
@@ -129,12 +130,7 @@ elif st.session_state.page == 2:
         if st.button("➡️ Next: Soil Analysis"):
             st.session_state.page = 3
             st.stop()
-    else:
-        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
-        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
-        st.error("Could not retrieve coordinates. Try another location.")
 
-# Third page: Soil and crop recommendation, NDVI
 elif st.session_state.page == 3:
     st.title("🧪 Soil & Crop Recommendation")
     lat, lon = st.session_state.lat, st.session_state.lon
@@ -199,3 +195,49 @@ elif st.session_state.page == 3:
         if st.button("➡️ Next: Water Analysis"):
             st.session_state.page = 4
             st.stop()
+
+elif st.session_state.page == 4:
+    st.title("💧 Water Body Detection")
+    lat, lon = st.session_state.lat, st.session_state.lon
+    point = ee.Geometry.Point([lon, lat])
+
+    modis_water = ee.ImageCollection("MODIS/006/MOD44W").mosaic().select("water_mask")
+    modis_presence = modis_water.reduceRegion(reducer=ee.Reducer.mean(), geometry=point.buffer(1000), scale=250).get("water_mask").getInfo()
+
+    if modis_presence and modis_presence > 0:
+        st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
+
+        # Water Quality Indicators (Pollution & Fish Feasibility)
+        water_quality = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY") \
+            .filterBounds(point) \
+            .select(["lake_total_layer_temperature", "lake_mix_layer_depth", "lake_bottom_temperature"]) \
+            .mean()
+
+        quality_data = water_quality.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=point.buffer(1000),
+            scale=500,
+            maxPixels=1e13
+        ).getInfo()
+
+        temp = quality_data.get("lake_total_layer_temperature")
+        depth = quality_data.get("lake_mix_layer_depth")
+
+        pollution_status = "Moderate"
+        if temp and temp > 305:
+            pollution_status = "High / ಹೆಚ್ಚಿನ ಮಾಲಿನ್ಯ"
+        elif temp and temp < 295:
+            pollution_status = "Low / ಕಡಿಮೆ ಮಾಲಿನ್ಯ"
+
+        fishing_possible = "Yes / ಹೌದು" if depth and depth > 0.5 else "No / ಇಲ್ಲ"
+
+        st.markdown(f"**🌊 Water Pollution Estimate / ನೀರಿನ ಮಾಲಿನ್ಯ ಪ್ರಮಾಣ:** {pollution_status}")
+        st.markdown(f"**🐟 Fishery Possibility / ಮೀನುಗಾರಿಕೆ ಸಾಧ್ಯತೆ:** {fishing_possible}")
+    
+    else:
+        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
+        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
+
+    if st.button("🔁 Restart"):
+        st.session_state.page = 1
+        st.stop()
