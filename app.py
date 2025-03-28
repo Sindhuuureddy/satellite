@@ -206,4 +206,3 @@ elif st.session_state.page == 4:
     if st.button("🔁 Restart"):
         st.session_state.page = 1
         st.stop()
-
