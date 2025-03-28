@@ -1,0 +1,7 @@
+streamlit
+earthengine-api
+google-auth
+requests
+folium
+streamlit-folium
+pillow
