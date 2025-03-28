@@ -12,11 +12,11 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Correctly pass dict directly (not as bytes or JSON string)
-    credentials_dict = dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    # Convert secret to JSON string and load as dict using key_file_contents
+    credentials_json = json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
     st.write("✅ Credentials found, initializing Earth Engine...")
-    credentials = ee.ServiceAccountCredentials(service_account, credentials_dict)
+    credentials = ee.ServiceAccountCredentials(service_account, key_file_contents=credentials_json)
     ee.Initialize(credentials)
     st.success("🌍 Earth Engine initialized successfully!")
 except Exception as e:
