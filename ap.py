@@ -78,7 +78,7 @@ elif st.session_state.page == 2:
         st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
         st.error("Could not retrieve coordinates. Try another location.")
 
-# Third page: Soil and crop recommendation, NDVI and LULC change detection
+# Third page: Soil and crop recommendation, NDVI
 elif st.session_state.page == 3:
     st.title("🧪 Soil & Crop Recommendation")
     lat, lon = st.session_state.lat, st.session_state.lon
@@ -101,22 +101,6 @@ elif st.session_state.page == 3:
 
         st.markdown("**🌿 NDVI Vegetation Health / ಸಸ್ಯಾವರಣದ ಆರೋಗ್ಯ:**")
         st_folium(ndvi_map, width=700, height=350)
-
-        # Land Use / Land Cover (LULC) Change Detection
-        lulc_early = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2020-01-01', '2020-12-31').first()
-        lulc_recent = ee.ImageCollection("ESA/WorldCover/v100").filterDate('2023-01-01', '2023-12-31').first()
-
-        if lulc_early and lulc_recent:
-            lulc_diff = lulc_recent.subtract(lulc_early).clip(point.buffer(1000))
-            lulc_vis = {"min": -100, "max": 100, "palette": ['red', 'white', 'green']}
-
-            lulc_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-            lulc_map.add_ee_layer(lulc_diff, lulc_vis, 'LULC Change Detection')
-
-            st.markdown("**🗺️ Land Use / Land Cover Change (2020 → 2023) / ಭೂಪಯೋಗ ಬದಲಾವಣೆ:**")
-            st_folium(lulc_map, width=700, height=350)
-        else:
-            st.error("❌ Failed to load Land Use / Land Cover images for change detection.")
 
         # Soil type, crop recommendation, moisture and rainfall
         soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
