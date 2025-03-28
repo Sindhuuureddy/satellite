@@ -11,7 +11,8 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    credentials_dict = json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]["json"])
+    # Use the secrets as they are without nested ['json'] access
+    credentials_dict = st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
     st.write("✅ Credentials found, initializing Earth Engine...")
     credentials = ee.ServiceAccountCredentials(service_account, key_data=credentials_dict)
