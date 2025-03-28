@@ -7,6 +7,41 @@ from streamlit_folium import st_folium
 from PIL import Image
 import tempfile
 
+# Add custom CSS to improve the theme
+st.markdown("""
+    <style>
+    body {
+        background-color: #E6F8E0;  /* Light green background */
+        font-family: 'Arial', sans-serif;
+    }
+    .stButton>button {
+        background-color: #4CAF50;  /* Green button */
+        color: white;
+        border-radius: 8px;
+        padding: 10px 20px;
+    }
+    .stTitle {
+        color: #2c6b2f;  /* Dark green title */
+    }
+    .stTextInput>div>div>input {
+        background-color: #f4f7f3;  /* Light input box background */
+        border: 1px solid #4CAF50;  /* Green border for inputs */
+    }
+    .stSidebar {
+        background-color: #b2d8b2;  /* Sidebar green */
+    }
+    .stAlert {
+        background-color: #ffcc00;  /* Yellow warning background */
+    }
+    .stSuccess {
+        background-color: #d4edda;  /* Light green success background */
+    }
+    .stWarning {
+        background-color: #ffeeba;  /* Light yellow warning background */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Function to add Earth Engine layers to a folium map
 def add_ee_layer(self, ee_image, vis_params, name):
     """Adds an Earth Engine image as a layer to the folium map."""
