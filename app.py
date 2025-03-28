@@ -59,6 +59,8 @@ elif st.session_state.page == 2:
             st.session_state.page = 3
             st.stop()
     else:
+        st.warning("⚠️ No water body detected in this area. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ಯಾವುದೇ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿಲ್ಲ.")
+        st.info("💡 Suggested Irrigation / ಶಿಫಾರಸು ಮಾಡಿದ ನೀರಾವರಿ: Borewell (ಬೋರ್‌ವೆಲ್), Drip (ಟಪಕ ನೀರಾವರಿ), Rainwater Harvesting (ಮಳೆ ನೀರಿನ ಸಂಗ್ರಹಣೆ)")
         st.error("Could not retrieve coordinates. Try another location.")
 
 elif st.session_state.page == 3:
