@@ -5,14 +5,16 @@ import requests
 import folium
 from streamlit_folium import st_folium
 from PIL import Image
+from collections.abc import Mapping
 
 st.set_page_config(page_title="Namma Kisan", layout="centered")
 
 st.write("✅ App is starting...")
 
 try:
-    # Use the secrets as they are without nested ['json'] access
-    credentials_dict = st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]
+    # Convert AttrDict to JSON string then back to dict
+    credentials_str = json.dumps(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+    credentials_dict = json.loads(credentials_str)
     service_account = st.secrets["GEE_SERVICE_ACCOUNT_EMAIL"]
     st.write("✅ Credentials found, initializing Earth Engine...")
     credentials = ee.ServiceAccountCredentials(service_account, key_data=credentials_dict)
@@ -87,7 +89,7 @@ elif st.session_state.page == 3:
         "Clayey Soil / ಕಡಲು ಮಣ್ಣು": "Rice, Sugarcane, Pulses / ಅಕ್ಕಿ, ಸಕ್ಕರೆ, ಕಡಲೆ"
     }
     st.write(f"**🟤 Soil Type:** {soil_type}")
-    st.write(f"**🌾 Recommended Crops:** {crops.get(soil_type, 'N/A')}" )
+    st.write(f"**🌾 Recommended Crops:** {crops.get(soil_type, 'N/A')}")
 
     if st.button("➡️ Next: Water Analysis"):
         st.session_state.page = 4
