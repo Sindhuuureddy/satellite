@@ -104,7 +104,7 @@ ax.set_title(f"Model Accuracy: {accuracy}%")
 ax.grid(True)
 ax.legend()
 
-# Display the accuracy graph in Streamlit
+# Display the accuracy graph in Streamlit (this will be displayed after water analysis)
 st.pyplot(fig)
 
 # Page flow (1st, 2nd, 3rd, and 4th page as before)
@@ -144,15 +144,29 @@ elif st.session_state.page == 3:
         .first()
 
     if image:
-        # NDVI (Vegetation Health)
-        ndvi_health = image.normalizedDifference(['B8', 'B4']).rename("NDVI")
-        ndvi_vis = {"min": 0.0, "max": 1.0, "palette": ['red', 'yellow', 'green']}
+        # Normal Segmentation (land, water, buildings, vegetation)
+        ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')  # Vegetation
+        ndwi = image.normalizedDifference(['B3', 'B8']).rename('NDWI')  # Water
+        ndbi = image.normalizedDifference(['B11', 'B8']).rename('NDBI')  # Buildings
+        
+        # Segment Image (Land, Vegetation, Water, Buildings)
+        segmented = ee.Image(0) \
+            .where(ndvi.gt(0.2), 1) \
+            .where(ndwi.gt(0.1), 2) \
+            .where(ndbi.gt(0.1), 3) \
+            .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
 
-        ndvi_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-        ndvi_map.add_ee_layer(ndvi_health, ndvi_vis, 'NDVI Vegetation Health')
+        # Visualization Palette for segmented image
+        segmentation_vis = {
+            "min": 0, "max": 4,
+            "palette": ['black', 'green', 'blue', 'gray', 'yellow']
+        }
 
-        st.markdown("**🌿 NDVI Vegetation Health / ಸಸ್ಯಾವರಣದ ಆರೋಗ್ಯ:**")
-        st_folium(ndvi_map, width=700, height=350)
+        segmented_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
+        segmented_map.add_ee_layer(segmented, segmentation_vis, 'Segmented Image')
+
+        st.markdown("**🗺️ Segmented Land Cover (Land, Vegetation, Water, Buildings)**")
+        st_folium(segmented_map, width=700, height=350)
 
         # Soil type, crop recommendation, moisture, and rainfall
         soil_dataset = ee.Image('OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02')
