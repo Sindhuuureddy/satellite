@@ -8,6 +8,21 @@ from PIL import Image
 from collections.abc import Mapping
 import tempfile
 
+# Function to add Earth Engine layers to a folium map
+def add_ee_layer(self, ee_image, vis_params, name):
+    """Adds an Earth Engine image as a layer to the folium map."""
+    map_id_dict = ee.Image(ee_image).getMapId(vis_params)
+    folium.raster_layers.TileLayer(
+        tiles=map_id_dict["tile_fetcher"].url_format,
+        attr="Google Earth Engine",
+        name=name,
+        overlay=True,
+        control=True,
+    ).add_to(self)
+
+# Attach the method to folium.Map
+folium.Map.add_ee_layer = add_ee_layer
+
 st.set_page_config(page_title="Satellite Image Analysis", layout="centered")
 
 st.write("✅ App is starting...")
@@ -80,7 +95,6 @@ elif st.session_state.page == 3:
         ndvi_vis = {"min": 0.0, "max": 1.0, "palette": ['red', 'yellow', 'green']}
 
         ndvi_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-        ndvi_map.add_ee_layer = add_ee_layer
         ndvi_map.add_ee_layer(ndvi_health, ndvi_vis, 'NDVI Vegetation Health')
 
         st.markdown("**🌿 NDVI Vegetation Health / ಸಸ್ಯಾವರಣದ ಆರೋಗ್ಯ:**")
@@ -94,7 +108,6 @@ elif st.session_state.page == 3:
         lulc_vis = {"min": -100, "max": 100, "palette": ['red', 'white', 'green']}
 
         lulc_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
-        lulc_map.add_ee_layer = add_ee_layer
         lulc_map.add_ee_layer(lulc_diff, lulc_vis, 'LULC Change Detection')
 
         st.markdown("**🗺️ Land Use / Land Cover Change (2020 → 2023) / ಭೂಪಯೋಗ ಬದಲಾವಣೆ:**")
@@ -108,18 +121,6 @@ elif st.session_state.page == 3:
             .where(ndwi.gt(0.1), 2) \
             .where(ndbi.gt(0.1), 3) \
             .where(ndvi.lt(0).And(ndwi.lt(0)).And(ndbi.lt(0)), 4)
-
-        def add_ee_layer(self, ee_image, vis_params, name):
-            map_id_dict = ee.Image(ee_image).getMapId(vis_params)
-            folium.raster_layers.TileLayer(
-                tiles=map_id_dict["tile_fetcher"].url_format,
-                attr="Google Earth Engine",
-                name=name,
-                overlay=True,
-                control=True,
-            ).add_to(self)
-
-        folium.Map.add_ee_layer = add_ee_layer
 
         original_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
         segmented_map = folium.Map(location=[lat, lon], zoom_start=13, control_scale=True)
@@ -185,7 +186,7 @@ elif st.session_state.page == 4:
     modis_presence = modis_water.reduceRegion(reducer=ee.Reducer.mean(), geometry=point.buffer(1000), scale=250).get("water_mask").getInfo()
 
     if modis_presence and modis_presence > 0:
-        st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಿಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
+        st.success("✅ Water body detected in this region. / ಈ ಪ್ರದೇಶದಲ್ಲಿ ನೀರಿನ ನಕ್ಷೇಪ ಪತ್ತೆಯಾಗಿದೆ.")
 
         # Water Quality Indicators (Pollution & Fish Feasibility)
         water_quality = ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY") \
