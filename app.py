@@ -13,13 +13,9 @@ st.set_page_config(page_title="Namma Kisan", layout="centered")
 st.write("✅ App is starting...")
 
 try:
-    # Write secrets to a temporary file in proper GEE format
-    with tempfile.NamedTemporaryFile(delete=False, mode="w", suffix=".json") as tmp:
-        json.dump(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), tmp)
-        service_account_file = tmp.name
-
-    st.write("✅ Credentials file created, initializing Earth Engine...")
-    credentials = ee.ServiceAccountCredentials(None, service_account_file)
+    # Convert the secrets into a JSON string then to bytes
+    key_json = json.dumps(dict(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]))
+    credentials = ee.ServiceAccountCredentials(None, key_data=key_json.encode("utf-8"))
     ee.Initialize(credentials)
     st.success("🌍 Earth Engine initialized successfully!")
 except Exception as e:
